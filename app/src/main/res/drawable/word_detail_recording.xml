@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android" android:oneshot="false">
+    <item
+        android:drawable="@mipmap/word_detail_recording_1"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_2"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_3"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_4"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_5"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_6"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_7"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_8"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_9"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_10"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_11"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_12"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_13"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_15"
+        android:duration="100"/>
+    <item
+        android:drawable="@mipmap/word_detail_recording_16"
+        android:duration="100"/>
+
+</animation-list>
