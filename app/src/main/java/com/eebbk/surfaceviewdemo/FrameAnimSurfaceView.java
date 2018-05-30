@@ -4,8 +4,10 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -14,16 +16,18 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class FrameAnimSurfaceView extends SurfaceView implements SurfaceHolder.Callback, View.OnClickListener {
     private static final String TAG = "DEVELOP-LZH";
     private SurfaceHolder mSurfaceHolder = null;
     private Canvas mCanvas = null;
-    boolean isDrawing = false;
-    private Thread mThread = null;
     private long mFrameIntervals = 80;
     private int currentIndex = 0;
     private Context mContext;
     private int frameTotal;
+    private Timer mTimer;
     private Bitmap mBitmap;
     private boolean isDestroy = false;
     private boolean isRepeat = true;
@@ -55,17 +59,14 @@ public class FrameAnimSurfaceView extends SurfaceView implements SurfaceHolder.C
     private void init() {
         mSurfaceHolder = getHolder();
         mSurfaceHolder.addCallback(this);
-        setFocusable(true);
-        setFocusableInTouchMode(true);
-        this.setKeepScreenOn(true);
+
         setZOrderOnTop(true);
+//        setZOrderMediaOverlay(true);
         mSurfaceHolder.setFormat(PixelFormat.TRANSLUCENT);
-        Log.d(TAG, "init");
     }
 
     public FrameAnimSurfaceView(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
-        Log.d(TAG, "constructor2");
     }
 
     public FrameAnimSurfaceView(Context context, AttributeSet attrs, int defStyle) {
@@ -78,10 +79,10 @@ public class FrameAnimSurfaceView extends SurfaceView implements SurfaceHolder.C
     @Override
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
         Log.d(TAG, "surfaceCreated");
-        if (!isDrawing) {
-            mThread = new Thread(new DrawRunnable());
-            isDrawing = true;
-            mThread.start();
+        if (isDestroy || mBitmapResourceIds != null) {
+            isDestroy = false;
+            setZOrderOnTop(true);
+            start();
         }
     }
 
@@ -91,58 +92,45 @@ public class FrameAnimSurfaceView extends SurfaceView implements SurfaceHolder.C
 
     @Override
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-        isDrawing = false;
         isDestroy = true;
+        stop();
+        setZOrderOnTop(false);
         Log.d(TAG, "surfaceDestroyed");
     }
 
 
     private void drawing() {
 //        Log.d(TAG,"drawing");
-        if (mBitmapResourceIds == null) {
-            isDrawing = false;
+        if (mBitmapResourceIds == null || mBitmapResourceIds.length == 0) {
             return;
         }
         if (mSurfaceHolder != null) {
             mCanvas = mSurfaceHolder.lockCanvas();
         }
-        try {
-            if (mSurfaceHolder != null && mCanvas != null) {
-                Paint paint = new Paint();
-                paint.setAntiAlias(true);
-                paint.setStyle(Paint.Style.STROKE);
-                Rect mSrcRect, mDestRect;
-                mBitmap = BitmapFactory.decodeResource(getResources(), mBitmapResourceIds[currentIndex]);
-                mSrcRect = new Rect(0, 0, mBitmap.getWidth(), mBitmap.getHeight());
-                mDestRect = new Rect(0, 0, getWidth(), getHeight());
-
-//                mCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-//                mCanvas.drawBitmap(mBitmap, 0, 0, null);
-                mCanvas.drawBitmap(mBitmap, mSrcRect, mDestRect, paint);
-            }
-        } finally {
-            currentIndex++;
+        if (mCanvas != null && mSurfaceHolder != null) {
+            mCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+            mBitmap = BitmapFactory.decodeResource(getResources(), mBitmapResourceIds[currentIndex++]);
+//            Paint paint = new Paint();
+//            paint.setAntiAlias(true);
+//            paint.setStyle(Paint.Style.STROKE);
+//            Rect mSrcRect, mDestRect;
+//            mSrcRect = new Rect(0, 0, mBitmap.getWidth(), mBitmap.getHeight());
+//            mDestRect = new Rect(0, 0, getWidth(), getHeight());
+//            mCanvas.drawBitmap(mBitmap, mSrcRect, mDestRect, paint);
+//            mCanvas.drawBitmap(mBitmap, getWidth() / 2, getHeight() / 2, null);
+            mCanvas.drawBitmap(mBitmap,0,0,null);
             if (currentIndex == mBitmapResourceIds.length) {
                 currentIndex = 0;
                 if (!isRepeat) {
-                    isDrawing = false;
+                    stop();
                 }
             }
-            if (mCanvas != null) {
-                mSurfaceHolder.unlockCanvasAndPost(mCanvas);
-            }
-            if (mBitmap != null) {
-                mBitmap.recycle();
-            }
         }
-    }
-
-    private void setResourceIDs(String commonPrefix, int frameTotal) {
-        this.frameTotal = frameTotal;
-        mBitmapResourceIds = new int[frameTotal];
-        for (int i = 0; i < frameTotal; i++) {
-            String name = commonPrefix + "_" + (i + 1);
-            mBitmapResourceIds[i] = mContext.getResources().getIdentifier(name, "mipmap", mContext.getPackageName());
+        if (mCanvas != null) {
+            mSurfaceHolder.unlockCanvasAndPost(mCanvas);
+        }
+        if (mBitmap != null) {
+            mBitmap.recycle();
         }
     }
 
@@ -152,21 +140,35 @@ public class FrameAnimSurfaceView extends SurfaceView implements SurfaceHolder.C
 
     public void start() {
         if (!isDestroy) {
-            isDrawing = true;
-            mThread = new Thread(new DrawRunnable());
-            mThread.start();
+            currentIndex = 0;
+            mTimer = new Timer();
+            mTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    drawing();
+                }
+            }, 0, mFrameIntervals);
+        } else {
+            Log.d(TAG, "Destroyed");
         }
     }
 
     public void stop() {
-        isDrawing = false;
+        if (mTimer != null) {
+            mTimer.cancel();
+            mTimer = null;
+        }
     }
 
     public void restart() {
         if (!isDestroy) {
-            isDrawing = true;
-            mThread = new Thread(new DrawRunnable());
-            mThread.start();
+            mTimer = new Timer();
+            mTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    drawing();
+                }
+            }, 0, mFrameIntervals);
         }
     }
 
@@ -174,18 +176,12 @@ public class FrameAnimSurfaceView extends SurfaceView implements SurfaceHolder.C
         this.isRepeat = isRepeat;
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent keyEvent) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            isDrawing = false;
-        }
-        return super.onKeyDown(keyCode, keyEvent);
-    }
 
     @Override
     public void onClick(View view) {
-        if (isDrawing) {
-            stop();
+        if (mTimer != null) {
+            mTimer.cancel();
+            mTimer = null;
         } else {
             restart();
         }
@@ -218,23 +214,6 @@ public class FrameAnimSurfaceView extends SurfaceView implements SurfaceHolder.C
             String name = commonPrefix + "_" + (i + 1);
             mBitmapResourceIds[i] = mContext.getResources()
                     .getIdentifier(name, "mipmap", mContext.getPackageName());
-        }
-    }
-
-    private class DrawRunnable implements Runnable {
-        @Override
-        public void run() {
-            Log.d(TAG, "run");
-            synchronized (mSurfaceHolder) {
-                while (isDrawing) {
-                    try {
-                        drawing();
-                        Thread.sleep(mFrameIntervals);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
         }
     }
 
